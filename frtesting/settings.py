@@ -26,21 +26,24 @@ SECRET_KEY = '560ohg$95pxk+g5&$)9xz*(ipn_9fz@5gey2ar*$^%4tgw%p5u'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0'
+]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'rest_framework',
+    'polls.apps.PollsConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    'rest_framework',
-    'polls.apps.PollsConfig'
 ]
 
 MIDDLEWARE = [
@@ -87,13 +90,6 @@ DATABASES = {
         'PORT': '5432',
     }
 }
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3'
-#     }
-# }
 
 
 # Password validation

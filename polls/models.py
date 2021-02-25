@@ -11,15 +11,28 @@ class Polls(models.Model):
 
 class Questions(models.Model):
     id = models.BigAutoField(primary_key=True, editable=False, null=False)
-    poll_id = models.ForeignKey(Polls, on_delete=models.DO_NOTHING)
+
+    # id опроса, к которому относится вопрос
+    poll_id = models.ForeignKey(Polls, on_delete=models.CASCADE)
+
+    # Текст вопроса
     text = models.TextField(editable=True, null=False)
+
+    # Тип вопроса
+    # c = checkbox
+    # r = radio button
+    # t = text
     type = models.CharField(max_length=1, editable=True, null=False)
 
 
 # Варианты ответа на конкретный вопрос
 class PollPossibleAnswers(models.Model):
     id = models.BigAutoField(primary_key=True, editable=False, null=False)
-    q_id = models.ForeignKey(Questions, on_delete=models.DO_NOTHING)
+
+    # id вопроса, к которому имеется один из вариантов ответа
+    q_id = models.ForeignKey(Questions, on_delete=models.CASCADE)
+
+    # Текст варианта ответа
     text = models.TextField(editable=True, null=True)   # null, если ответ открытый (пользовательская строка)
 
 
@@ -27,8 +40,12 @@ class PollPossibleAnswers(models.Model):
 class UserAnswers(models.Model):
     id = models.BigAutoField(primary_key=True, editable=False, null=False)
     user_id = models.BigIntegerField(editable=False, null=False)
-    q_id = models.ForeignKey(Questions, on_delete=models.DO_NOTHING)    # На какой вопрос
-    user_ans = models.ForeignKey(PollPossibleAnswers, on_delete=models.DO_NOTHING)  # Какой вариант ответа
+
+    # id вопроса, на который отвечает пользователь
+    q_id = models.ForeignKey(Questions, on_delete=models.CASCADE)
+
+    # Ответ пользователя
+    user_ans = models.ForeignKey(PollPossibleAnswers, on_delete=models.CASCADE)
 
     # Если отвечашь на текстовый вопрос, то это пишется сюда
     # Если вопрос с типом 'r' или 'c', то здесь будет null

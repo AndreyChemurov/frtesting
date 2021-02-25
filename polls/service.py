@@ -1,24 +1,22 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate, login
-from django.db import transaction
 from django.db.models import Q
-
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.db import connection
 from datetime import date
 
 from polls.models import *
 
 
-@transaction.atomic
+@transaction.non_atomic_requests
 def admin_auth(request, username: str, password: str):
     err = False
 
     admin = get_user_model()
 
     if not admin.objects.filter(username=username).exists():
-        transaction.rollback()
-
-        err = True
-        return None, err
+        User.objects.create_superuser(username=username, email='', password=password)
 
     user = authenticate(request, username=username, password=password)
 
@@ -35,7 +33,7 @@ def admin_auth(request, username: str, password: str):
     return {"login": "success"}, err
 
 
-@transaction.atomic
+@transaction.non_atomic_requests
 def poll_create(request, name: str, date_start: date, date_end: date, description: str):
     err = False
 
@@ -50,10 +48,12 @@ def poll_create(request, name: str, date_start: date, date_end: date, descriptio
 
     transaction.commit()
 
-    return {"create_poll": "success"}, err
+    print(new_poll)
+
+    return {"poll_id": new_poll.id}, err
 
 
-@transaction.atomic
+@transaction.non_atomic_requests
 def poll_update(request, poll_id: int, name: str = None, date_end: date = None, description: str = None):
     err = False
 
@@ -69,7 +69,7 @@ def poll_update(request, poll_id: int, name: str = None, date_end: date = None, 
         err = True
         return None, err
 
-    poll_to_upd = Polls.objects.get(pk=poll_id)
+    poll_to_upd = Polls.objects.filter(pk=poll_id)[0]
 
     if name:
         poll_to_upd.name = name
@@ -84,10 +84,12 @@ def poll_update(request, poll_id: int, name: str = None, date_end: date = None, 
 
     transaction.commit()
 
-    return {"update_poll": "success"}, err
+    print(poll_to_upd)
+
+    return {"poll_id": poll_id}, err
 
 
-@transaction.atomic
+@transaction.non_atomic_requests
 def poll_delete(request, poll_id: int):
     err = False
 
@@ -97,14 +99,24 @@ def poll_delete(request, poll_id: int):
         err = True
         return None, err
 
-    Polls.objects.filter(pk=poll_id).delete()
+    poll_to_delete = Polls.objects.filter(pk=poll_id)[0]
+
+    if not poll_to_delete:
+        transaction.rollback()
+
+        err = True
+        return None, err
+
+    poll_to_delete.delete()
 
     transaction.commit()
 
-    return {"delete_poll": "success"}, err
+    print(poll_to_delete)
+
+    return {"poll_id": poll_id}, err
 
 
-@transaction.atomic
+@transaction.non_atomic_requests
 def question_create(request, poll_id: int, text: str, _type: str, answers: list = None):
     err = False
 
@@ -120,23 +132,32 @@ def question_create(request, poll_id: int, text: str, _type: str, answers: list 
         err = True
         return None, err
 
-    q = Questions(poll_id=poll_id, text=text, type=_type)
+    poll = Polls.objects.filter(pk=poll_id)[0]
+
+    q = Questions(poll_id=poll, text=text, type=_type)
     q.save()
 
     if _type in ('r', 'c'):
         for ans in answers:
-            a = PollPossibleAnswers(q_id=q.id, text=ans)
+            question = Questions.objects.filter(pk=q.id)[0]
+            a = PollPossibleAnswers(q_id=question, text=ans)
             a.save()
+            print(a)
     else:
-        a = PollPossibleAnswers(q_id=q.id, text=None)
+        question = Questions.objects.filter(pk=q.id)[0]
+        a = PollPossibleAnswers(q_id=question, text=None)
         a.save()
+        print(a)
 
+    q.save()
     transaction.commit()
 
-    return {"create_question": "success"}, err
+    print(q)
+
+    return {"create_question": q.id}, err
 
 
-@transaction.atomic
+@transaction.non_atomic_requests
 def question_update(request, q_id: int, text: str, _type: str, answers: list = None):
     err = False
 
@@ -152,19 +173,34 @@ def question_update(request, q_id: int, text: str, _type: str, answers: list = N
         err = True
         return None, err
 
-    q_to_upd = Questions.objects.get(pk=q_id)
+    q_to_upd = Questions.objects.filter(pk=q_id)[0]
 
     if text:
         q_to_upd.text = text
 
-    # Придумать как обновить тип и вместе с ним ответы
+    if _type:
+        q_to_upd.type = _type
+
+    if _type in ('r', 'c'):
+        for ans in answers:
+            question = Questions.objects.filter(pk=q_id)[0]
+            a = PollPossibleAnswers(q_id=question, text=ans)
+            a.save()
+            print(a)
+    else:
+        question = Questions.objects.filter(pk=q_id)[0]
+        a = PollPossibleAnswers(q_id=question, text=None)
+        a.save()
+        print(a)
 
     transaction.commit()
 
-    return {"update_question": "success"}, err
+    print(q_to_upd)
+
+    return {"update_question": q_id}, err
 
 
-@transaction.atomic
+@transaction.non_atomic_requests
 def question_delete(request, q_id: int):
     err = False
 
@@ -174,33 +210,61 @@ def question_delete(request, q_id: int):
         err = True
         return None, err
 
-    Questions.objects.filter(pk=q_id).delete()
+    q_to_delete = Questions.objects.filter(pk=q_id)[0]
+
+    if not q_to_delete:
+        transaction.rollback()
+
+        err = True
+        return None, err
+
+    q_to_delete.delete()
 
     transaction.commit()
 
-    return {"delete_question": "success"}, err
+    print(q_to_delete)
+    print(PollPossibleAnswers.objects.filter(q_id=q_id))
+
+    return {"delete_question": q_id}, err
 
 
-@transaction.atomic
-def get_active_polls(page: int):
-    # err = False
-    #
-    # today = date.today()
-    # active_polls = Polls.objects.filter(Q(date_end__gte=today)|Q(date_end=None))
-    #
-    # if not active_polls:
-    #     err = True
-    #     return None, err
-    #
-    # return active_polls, err
-    pass
+@transaction.non_atomic_requests
+def get_active_polls():
+    err = False
+
+    today = date.today()
+    active_polls = Polls.objects.filter(Q(date_end__gte=today) | Q(date_end=None)).values()
+
+    if not active_polls:
+        err = True
+        return None, err
+
+    return list(active_polls), err
 
 
-@transaction.atomic
-def complete_poll(user_id: int, poll_id: int, answers: list = None):
-    pass
+@transaction.non_atomic_requests
+def complete_poll(user_id: int, q_id: int, answers: list = None):
+    err = False
+
+    q = Questions.objects.filter(pk=q_id)[0]
+    pa = PollPossibleAnswers.objects.filter(pk=answers[0])[0]
+
+    user_ans = UserAnswers(user_id=user_id, q_id=q, user_ans=pa, text_ans=answers[1])
+    user_ans.save()
+
+    transaction.commit()
+
+    print(user_ans)
+
+    return {"q_id_answer": q_id}, err
 
 
-@transaction.atomic
-def get_done_polls(user_id: int, page: int):
-    pass
+@transaction.non_atomic_requests
+def get_done_polls(user_id: int):
+    # TODO: NOT IMPLEMENTED
+
+    polls = Questions.objects.raw('''SELECT DISTINCT "poll_id"
+    FROM "questions" q INNER JOIN "user_answers" u
+    ON ("user_id"=%s AND q.id=u.q_id);''', [user_id])
+
+    return None, False

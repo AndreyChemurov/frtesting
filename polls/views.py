@@ -1,163 +1,199 @@
-from django.http import HttpRequest
 from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from rest_framework import status
-from rest_framework.response import Response
 import json
-from datetime import date
 
 from . import errors, service
 
 
 @csrf_exempt
-def admin_auth(request: HttpRequest):
-    """ Документация """
+def admin_auth(request):
+    """
+    Метод авторизации пользователя.
+    Входные данные:
+        1. username: имя пользователя (админ назначен "frtesting")
+        2. password: пароль (для админа "frtesting")
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
+    # Проверка валидности входных данных
     if any([
-        data['username'] is None,
-        data['password'] is None,
-
-        not isinstance(data['username'], str),
-        not isinstance(data['password'], str)
+        'username' not in data or not isinstance(data['username'], str),
+        'password' not in data or not isinstance(data['password'], str),
     ]):
-        return Response(errors.HTTP_401, status=status.HTTP_401_UNAUTHORIZED)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
+    # Проверить, что имя админа валидное
+    if data['username'] != "frtesting":
+        return JsonResponse(errors.HTTP_401, status=status.HTTP_401_UNAUTHORIZED)
+
+    """
+        Вызов соответствующей функции из бизнес-логики.
+        response: ответ бизнес-логики, dict.
+        err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
     response, err = service.admin_auth(request, data['username'], data['password'])
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def poll_create(request: HttpRequest):
-    """ Документация """
+def poll_create(request):
+    """
+    Метод создания нового опроса.
+    Входные данные:
+        1. name: уникальне имя опроса.
+        2. date_start: дата начала опроса
+        3. date_end: дата окончания опроса
+        4. description: описание опроса
+    Возвращаемые значения:
+        1. id: уникальный идентификатор созданного опроса.
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
+    # Проверка валидности входных данных
     if any([
-        data['name'] is None,
-        data['date_start'] is None,
-        data['date_end'] is None,
-        data['description'] is None,
-
-        # Нельзя указать время начала раньше времени окончания
-        (
-                isinstance(data['date_start'], date) and
-                isinstance(data['date_end'], date) and
-                data['date_end'] < data['date_start']
-        ),
-
-        not isinstance(data['name'], str),
-        not isinstance(data['description'], str)
+        'name' not in data or not isinstance(data['name'], str),
+        'description' not in data or not isinstance(data['description'], str),
     ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
     response, err = service.poll_create(
         request, data['name'], data['date_start'], data['date_end'], data['description']
     )
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def poll_update(request: HttpRequest):
-    """ Документация """
+def poll_update(request):
+    """
+    Метод изменения содержимого опроса.
+    Входные данные:
+        1. poll_id: уникальный id опроса, который нужно изменить
+        2. name: название опроса
+        3. date_end: дата окончания опроса
+        4. description: описание опроса
+    Возвращаемые значения:
+        1. id: идентификатор измененного объявления
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
-    if any([
-        data['poll_id'] is None,
-        not isinstance(data['poll_id'], int) or data['poll_id'] <= 0,
-
-        'name' in data and not isinstance(data['name'], str),
-        'date_end' in data and not isinstance(data['date_end'], date),
-        'description' in data and not isinstance(data['description'], str)
-    ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
-
-    # БИЗНЕС-ЛОГИКА
-    # poll_id должен существовать
-    # name должен быть также уникальным при обновлении
-    # date_end не должен быть меньше стартового при обновлении
-
-    # response = json
-    # error = bool (False default)
-    response, err = service.poll_update(data['poll_id'], data['name'], data['date_end'], data['description'])
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
+    response, err = service.poll_update(request, data['poll_id'], data['name'], data['date_end'], data['description'])
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def poll_delete(request: HttpRequest):
-    """ Документация """
+def poll_delete(request):
+    """
+    Метод удаления опроса.
+    Входные данные:
+        1. poll_id: идентификатор удаляемого опроса.
+    Выходные значения:
+        1. poll_id: идентификатор удаленного опроса.
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
-    # poll_id
+    # Проверка валидности входных данных
     if any([
         data['poll_id'] is None,
         not isinstance(data['poll_id'], int) or data['poll_id'] <= 0
     ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
-    # БИЗНЕС-ЛОГИКА
-    # poll_id должен существовать
-
-    # response = json
-    # error = bool (False default)
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
     response, err = service.poll_delete(request, data['poll_id'])
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def question_create(request: HttpRequest):
-    """ Документация """
+def question_create(request):
+    """
+    Метод создания вопроса к опросу.
+    Входные данные:
+        1. poll_id: идентификатор опроса, к которому относится вопрос.
+        2. text: текст вопроса
+        3. type: тип вопроса
+        4. answers: варианты ответа
+    Возвращаемые значения:
+        1. q_id: идентификатор созданного вопроса
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
+    # Проверка валидности входных данных
     if any([
         data['poll_id'] is None,
         not isinstance(data['poll_id'], int) or data['poll_id'] <= 0,
@@ -167,35 +203,47 @@ def question_create(request: HttpRequest):
 
         'answers' in data and not isinstance(data['answers'], list)
     ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
     answers = data.get('answers')
 
-    # БИЗНЕС-ЛОГИКА
-    # poll_id должен существовать
-
-    # response = json
-    # error = bool (False default)
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
     response, err = service.question_create(request, data['poll_id'], data['text'], data['type'], answers)
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def question_update(request: HttpRequest):
-    """ Документация """
+def question_update(request):
+    """
+    Метод изменения вопроса.
+    Входные данные:
+        1. q_id: идентификатор вопроса
+        2. text: текст вопроса
+        3. type: тип вопроса
+        4. answers: варианты ответа
+    Возвращаемые значения:
+        1. q_id: идентификатор измененног вопроса
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
+    # Проверка валидности входных данных
     if any([
         data['q_id'] is None,
         not isinstance(data['q_id'], int) or data['q_id'] <= 0,
@@ -205,146 +253,162 @@ def question_update(request: HttpRequest):
 
         'answers' in data and not isinstance(data['answers'], list)
     ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
     answers = data.get('answers')
 
-    # Проверить соответствие типа ответов с переданными ответами в JSON
-    # ИЛИ можно любые ответы передавать в списке, а потом, в зависимости от типа, извлекать
-
-    # БИЗНЕС-ЛОГИКА
-
-    # response = json
-    # error = bool (False default)
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
     response, err = service.question_update(request, data['q_id'], data['text'], data['type'], answers)
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def question_delete(request: HttpRequest):
-    """ Документация """
+def question_delete(request):
+    """
+    Метод удаления вопроса.
+    Входные данные:
+        1. q_id: уникальный идентификатор вопроса
+    Выходные значения:
+        1. q_id: уникальный идентификатор удаленного вопроса
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
-    # q_id
+    # Проверка валидности входных данных
     if any([
         data['q_id'] is None,
         not isinstance(data['q_id'], int) or data['q_id'] <= 0
     ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
-    # БИЗНЕС-ЛОГИКА
-
-    # response = json
-    # error = bool (False default)
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
     response, err = service.question_delete(request, data['q_id'])
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def get_active_polls(request: HttpRequest):
-    """ Документация """
+def get_active_polls(request):
+    """ Метод получения активных опросов. """
 
-    if request.method != 'POST':
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    # Проверка валидности метода
+    if request.method != 'GET':
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
-
-    if any([
-        data['page'] is None,
-        not isinstance(data['page'], int) or data['page'] <= 0
-    ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
-
-    response, err = service.get_active_polls(data['page'])
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
+    response, err = service.get_active_polls()
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK, safe=False)
 
 
 @csrf_exempt
-def complete_poll(request: HttpRequest):
-    """ Документация """
+def complete_poll(request):
+    """
+    Метод ответа на вопрос.
+    Входные данные:
+        1. user_id: пользовательский id
+        2. q_id: идентификатор вопроса, на котороый отвечает пользователь
+        3. answers: ответ(ы) на вопрос
+    """
 
+    # Проверка валидности метода
     if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
+    # Проверка валидности входных данных
     if any([
         data['user_id'] is None,
         not isinstance(data['user_id'], int) or data['user_id'] <= 0,
 
-        data['poll_id'] is None,
-        not isinstance(data['poll_id'], int) or data['poll_id'] <= 0,
+        data['q_id'] is None,
+        not isinstance(data['q_id'], int) or data['q_id'] <= 0,
 
         'answers' in data and not isinstance(data['answers'], list)
     ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
     answers = data.get('answers')
 
-    # Извлечь ответ в соответствии с типом (или как это вообще взаимодействует с бизнес-логикой?)
-    # БИЗНЕС-ЛОГИКА
-
-    # response = json
-    # error = bool (False default)
-    response, err = service.complete_poll(data['user_id'], data['poll_id'], answers)
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
+    response, err = service.complete_poll(data['user_id'], data['q_id'], answers)
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
-def get_done_polls(request: HttpRequest):
-    if request.method != "POST":
-        return Response(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+def get_done_polls(request):
+    """
+    Метод получения выполненных пользователем опросов.
+    """
 
+    # Проверка валидности метода
+    if request.method != "POST":
+        return JsonResponse(errors.HTTP_405, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    # Извлечение данных из запроса
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return Response(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_JSON, status=status.HTTP_400_BAD_REQUEST)
 
+    # Проверка валидности входных данных
     if any([
         data['user_id'] is None,
-        not isinstance(data['user_id'], int) or data['user_id'] <= 0,
-
-        data['page'] is None,
-        not isinstance(data['page'], int) or data['page'] <= 0
+        not isinstance(data['user_id'], int) or data['user_id'] <= 0
     ]):
-        return Response(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(errors.HTTP_400_WRONG_PARAMS, status=status.HTTP_400_BAD_REQUEST)
 
-    # БИЗНЕС-ЛОГИКА
-
-    # response = json
-    # error = bool (False default)
-    response, err = service.get_done_polls(data['user_id'], data['page'])
+    """
+            Вызов соответствующей функции из бизнес-логики.
+            response: ответ бизнес-логики, dict.
+            err: bool тип данных, сообщяющий транспортному уровню, что что-то пошло не так.
+    """
+    response, err = service.get_done_polls(data['user_id'])
 
     if err:
-        return Response(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse(errors.HTTP_500, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return Response(response, status=status.HTTP_200_OK)
+    return JsonResponse(response, status=status.HTTP_200_OK, safe=False)
