@@ -19,5 +19,6 @@ cd frtesting/
 ![poll_update](https://user-images.githubusercontent.com/58785926/109211055-bf2fbb00-77be-11eb-8447-aac1cc07744d.png)
 ![poll_delete](https://user-images.githubusercontent.com/58785926/109211057-c060e800-77be-11eb-9e2b-567b2506ecca.png)
 ![q_create](https://user-images.githubusercontent.com/58785926/109211061-c22aab80-77be-11eb-849d-89b357b8103d.png)
+![q_update](https://user-images.githubusercontent.com/58785926/109285373-0dca6d00-7832-11eb-9902-f6f4dcc59858.png)
 ![q_delete](https://user-images.githubusercontent.com/58785926/109211069-c3f46f00-77be-11eb-8db7-68c0403867d4.png)
 ![complete](https://user-images.githubusercontent.com/58785926/109211080-c6ef5f80-77be-11eb-922a-db36fce98b88.png)
